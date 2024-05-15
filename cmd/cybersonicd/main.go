@@ -87,7 +87,13 @@ func HandlerSfx(w http.ResponseWriter, r *http.Request) {
 	values := r.URL.Query()
 	name := values.Get("name")
 	n := name + ".wav"
-	P[n].Play()
+
+    if sound, ok := P[n]; ok {
+        sound.Play()
+    } else {
+        http.Error(w, "Sound not found", http.StatusNotFound)
+        return
+    }
 }
 
 func main() {
