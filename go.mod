@@ -1,6 +1,6 @@
 module github.com/gzj/cybersonic
 
-go 1.21.0
+go 1.22.3
 
 require (
 	github.com/gopxl/beep v1.4.1
