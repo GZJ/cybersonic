@@ -6,10 +6,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	e "github.com/gzj/cybersonic/assets"
 
+	"github.com/getlantern/systray"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/speaker"
 	"github.com/gopxl/beep/wav"
@@ -88,26 +90,52 @@ func HandlerSfx(w http.ResponseWriter, r *http.Request) {
 	name := values.Get("name")
 	n := name + ".wav"
 
-    if sound, ok := P[n]; ok {
-        sound.Play()
-    } else {
-        http.Error(w, "Sound not found", http.StatusNotFound)
-        return
-    }
+	if sound, ok := P[n]; ok {
+		sound.Play()
+	} else {
+		http.Error(w, "Sound not found", http.StatusNotFound)
+		return
+	}
+}
+
+func onReady() {
+	iconBytes, err := e.Icon.ReadFile("icons/tray.ico")
+	if err != nil {
+		log.Fatalf("Failed to load icon: %v", err)
+	}
+
+	systray.SetIcon(iconBytes)
+	systray.SetTitle("cybersonicd")
+	systray.SetTooltip("cybersonicd")
+
+	mQuit := systray.AddMenuItem("Quit", "Quit the application")
+	go func() {
+		<-mQuit.ClickedCh
+		systray.Quit()
+	}()
+}
+
+func onExit() {
+	log.Println("Stopping Cybersonicd...")
+	for _, sp := range P {
+		sp.Close()
+	}
+	os.Exit(0)
 }
 
 func main() {
 	var (
 		address string
 	)
-
 	flag.StringVar(&address, "address", "127.0.0.1:49161", "server address")
-
 	flag.Parse()
 
-	http.HandleFunc("/sfx", HandlerSfx)
-	http.HandleFunc("/all", HandlerAll)
+	go func() {
+		http.HandleFunc("/sfx", HandlerSfx)
+		http.HandleFunc("/all", HandlerAll)
+		log.Printf("Cybersonicd is listening at http://%s ...\n", address)
+		http.ListenAndServe(address, nil)
+	}()
 
-	log.Println("Server listening on " + address + " ...")
-	http.ListenAndServe(address, nil)
+	systray.Run(onReady, onExit)
 }
